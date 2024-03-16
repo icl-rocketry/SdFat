@@ -132,7 +132,7 @@ const uint16_t SD_INIT_TIMEOUT = 2000;
 /** read timeout ms */
 const uint16_t SD_READ_TIMEOUT = 300;
 /** write time out ms */
-const uint16_t SD_WRITE_TIMEOUT = 600;
+const uint16_t SD_WRITE_TIMEOUT = 2000;
 //------------------------------------------------------------------------------
 // SD card commands
 /** GO_IDLE_STATE - init card in spi mode if CS low */
