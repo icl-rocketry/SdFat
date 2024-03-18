@@ -123,6 +123,8 @@ class SharedSpiCard {
   void error(uint8_t code) {
     //    (void)code;
     m_errorCode = code;
+
+    
   }
   /**
    * \return code for the last error. See SdCardInfo.h for a list of error
