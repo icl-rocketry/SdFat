@@ -158,13 +158,11 @@ bool SharedSpiCard::begin(SdSpiConfig spiConfig) {
     }
     if (timeout.timedOut()) {
       error(SD_CARD_ERROR_CMD0);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD0");
       goto fail;
     }
   }
 #if USE_SD_CRC
   if (cardCommand(CMD59, 1) != R1_IDLE_STATE) {
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD59");
     error(SD_CARD_ERROR_CMD59);
     goto fail;
   }
@@ -185,7 +183,6 @@ bool SharedSpiCard::begin(SdSpiConfig spiConfig) {
     }
     if (timeout.timedOut()) {
       error(SD_CARD_ERROR_CMD8);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD8");
       goto fail;
     }
   }
@@ -195,7 +192,6 @@ bool SharedSpiCard::begin(SdSpiConfig spiConfig) {
     // check for timeout
     if (timeout.timedOut()) {
       error(SD_CARD_ERROR_ACMD41);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ACMD41");
       goto fail;
     }
   }
@@ -203,7 +199,6 @@ bool SharedSpiCard::begin(SdSpiConfig spiConfig) {
   if (type() == SD_CARD_TYPE_SD2) {
     if (cardCommand(CMD58, 0)) {
       error(SD_CARD_ERROR_CMD58);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD58");
       goto fail;
     }
     if ((spiReceive() & 0XC0) == 0XC0) {
@@ -226,7 +221,6 @@ fail:
 bool SharedSpiCard::cardCMD6(uint32_t arg, uint8_t* status) {
   if (cardCommand(CMD6, arg)) {
     error(SD_CARD_ERROR_CMD6);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD6");
     goto fail;
   }
   if (!readData(status, 64)) {
@@ -253,7 +247,6 @@ uint8_t SharedSpiCard::cardCommand(uint8_t cmd, uint32_t arg) {
     return 0XFF;
   }
   
-  RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD Card Command: " + std::to_string(cmd) + "with arg: " + std::to_string(arg));
 #if USE_SD_CRC
   // form message
   uint8_t buf[6];
@@ -313,7 +306,7 @@ bool SharedSpiCard::erase(uint32_t firstSector, uint32_t lastSector) {
     if ((firstSector & m) != 0 || ((lastSector + 1) & m) != 0) {
       // error card can't erase specified area
       error(SD_CARD_ERROR_ERASE_SINGLE_SECTOR);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ERASE_SINGLE_SECTOR");
+      
       goto fail;
     }
   }
@@ -324,12 +317,10 @@ bool SharedSpiCard::erase(uint32_t firstSector, uint32_t lastSector) {
   if (cardCommand(CMD32, firstSector) || cardCommand(CMD33, lastSector) ||
       cardCommand(CMD38, 0)) {
     error(SD_CARD_ERROR_ERASE);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ERASE");
     goto fail;
   }
   if (!waitReady(SD_ERASE_TIMEOUT)) {
     error(SD_CARD_ERROR_ERASE_TIMEOUT);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ERASE_TIMEOUT");
     goto fail;
   }
   spiStop();
@@ -372,19 +363,18 @@ bool SharedSpiCard::readData(uint8_t* dst, size_t count) {
   while ((m_status = spiReceive()) == 0XFF) {
     if (timeout.timedOut()) {
       error(SD_CARD_ERROR_READ_TIMEOUT);
-      RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_READ_TIMEOUT");
+      
       goto fail;
     }
   }
   if (m_status != DATA_START_SECTOR) {
     error(SD_CARD_ERROR_READ_TOKEN);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_TOKEN");
+    
     goto fail;
   }
   // transfer data
   if ((m_status = spiReceive(dst, count))) {
     error(SD_CARD_ERROR_DMA);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_DMA");
     goto fail;
   }
 
@@ -393,7 +383,6 @@ bool SharedSpiCard::readData(uint8_t* dst, size_t count) {
   crc = (spiReceive() << 8) | spiReceive();
   if (crc != CRC_CCITT(dst, count)) {
     error(SD_CARD_ERROR_READ_CRC);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_READ_CRC");
     goto fail;
   }
 #else   // USE_SD_CRC
@@ -412,7 +401,6 @@ bool SharedSpiCard::readOCR(uint32_t* ocr) {
   uint8_t* p = reinterpret_cast<uint8_t*>(ocr);
   if (cardCommand(CMD58, 0)) {
     error(SD_CARD_ERROR_CMD58);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD58");
     goto fail;
   }
   for (uint8_t i = 0; i < 4; i++) {
@@ -435,7 +423,6 @@ bool SharedSpiCard::readRegister(uint8_t cmd, void* buf) {
   uint8_t* dst = reinterpret_cast<uint8_t*>(buf);
   if (cardCommand(cmd, 0)) {
     error(SD_CARD_ERROR_READ_REG);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_READ_REG");
     goto fail;
   }
   if (!readData(dst, 16)) {
@@ -453,7 +440,6 @@ bool SharedSpiCard::readSCR(scr_t* scr) {
   uint8_t* dst = reinterpret_cast<uint8_t*>(scr);
   if (cardAcmd(ACMD51, 0)) {
     error(SD_CARD_ERROR_ACMD51);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ACMD51");
     goto fail;
   }
   if (!readData(dst, sizeof(scr_t))) {
@@ -474,7 +460,7 @@ bool SharedSpiCard::readSector(uint32_t sector, uint8_t* dst) {
   }
   if (cardCommand(CMD17, sector)) {
     error(SD_CARD_ERROR_CMD17);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD17");
+    
     goto fail;
   }
   if (!readData(dst, 512)) {
@@ -508,7 +494,6 @@ bool SharedSpiCard::readStart(uint32_t sector) {
   }
   if (cardCommand(CMD18, sector)) {
     error(SD_CARD_ERROR_CMD18);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD18");
     goto fail;
   }
   m_state = READ_STATE;
@@ -524,7 +509,6 @@ bool SharedSpiCard::readSDS(sds_t* sds) {
   // retrun is R2 so read extra status byte.
   if (cardAcmd(ACMD13, 0) || spiReceive()) {
     error(SD_CARD_ERROR_ACMD13);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_ACND13");
     goto fail;
   }
   if (!readData(dst, sizeof(sds_t))) {
@@ -542,7 +526,6 @@ bool SharedSpiCard::readStop() {
   m_state = IDLE_STATE;
   if (cardCommand(CMD12, 0)) {
     error(SD_CARD_ERROR_CMD12);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD12");
     goto fail;
   }
   spiStop();
@@ -604,7 +587,6 @@ bool SharedSpiCard::writeData(const uint8_t* src) {
   // wait for previous write to finish
   if (!waitReady(SD_WRITE_TIMEOUT)) {
     error(SD_CARD_ERROR_WRITE_TIMEOUT);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_WRITE_TIMEOUT");
     goto fail;
   }
   if (!writeData(WRITE_MULTIPLE_TOKEN, src)) {
@@ -632,7 +614,6 @@ bool SharedSpiCard::writeData(uint8_t token, const uint8_t* src) {
   m_status = spiReceive();
   if ((m_status & DATA_RES_MASK) != DATA_RES_ACCEPTED) {
     error(SD_CARD_ERROR_WRITE_DATA);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_WRITE_DATA");
     goto fail;
   }
   return true;
@@ -649,7 +630,6 @@ bool SharedSpiCard::writeSector(uint32_t sector, const uint8_t* src) {
   }
   if (cardCommand(CMD24, sector)) {
     error(SD_CARD_ERROR_CMD24);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD24");
     goto fail;
   }
   if (!writeData(DATA_START_SECTOR, src)) {
@@ -660,13 +640,11 @@ bool SharedSpiCard::writeSector(uint32_t sector, const uint8_t* src) {
   // wait for flash programming to complete
   if (!waitReady(SD_WRITE_TIMEOUT)) {
     error(SD_CARD_ERROR_WRITE_PROGRAMMING);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_WRITE_PROGRAMMING");
     goto fail;
   }
   // response is r2 so get and check two bytes for nonzero
   if (cardCommand(CMD13, 0) || spiReceive()) {
     error(SD_CARD_ERROR_CMD13);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD13");
     goto fail;
   }
 #endif  // CHECK_FLASH_PROGRAMMING
@@ -703,7 +681,6 @@ bool SharedSpiCard::writeStart(uint32_t sector) {
   }
   if (cardCommand(CMD25, sector)) {
     error(SD_CARD_ERROR_CMD25);
-    RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_CMD25");
     goto fail;
   }
   m_state = WRITE_STATE;
@@ -725,7 +702,6 @@ bool SharedSpiCard::writeStop() {
 
 fail:
   error(SD_CARD_ERROR_STOP_TRAN);
-  RicCoreLogging::log<RicCoreLoggingConfig::LOGGERS::SYS>("SD_CARD_ERROR_STOP_TRAN");
   spiStop();
   return false;
 }
